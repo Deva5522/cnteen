@@ -1,0 +1,4 @@
+node_modules/
+.env
+canteen-connect/backend/data/db/
+*.log
