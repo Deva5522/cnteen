@@ -4,6 +4,8 @@ const userSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true }, // Using simpler ID (like 'user123') for compatibility with existing frontend
     password: { type: String, required: true },
     name: { type: String, required: true },
+    email: { type: String, default: '' },
+    phone: { type: String, default: '' },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     wallet: { type: Number, default: 0 },
     preferences: {

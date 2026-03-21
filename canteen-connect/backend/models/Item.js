@@ -4,6 +4,7 @@ const itemSchema = new mongoose.Schema({
     id: { type: Number, required: true, unique: true }, // Keeping numeric ID to match frontend data
     name: { type: String, required: true },
     price: { type: Number, required: true },
+    stock: { type: Number, default: 50 }, // Default stock
     category: { type: String, required: true },
     dietary: { type: String, required: true }, // Veg, Non-Veg
     image: { type: String, required: true },

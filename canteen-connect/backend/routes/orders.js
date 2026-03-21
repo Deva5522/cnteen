@@ -23,8 +23,49 @@ router.post('/', async (req, res) => {
     try {
         const { userId, items, total, paymentMethod } = req.body;
 
-        // Create Order
+        // 1. Validate Items & Stock
+        const importItem = (await import('../models/Item.js')).default;
+
+        for (const orderItem of items) {
+            const dbItem = await importItem.findOne({ id: orderItem.id });
+            if (!dbItem) {
+                return res.status(400).json({ success: false, message: `Item not found: ${orderItem.name}` });
+            }
+            if (dbItem.stock < orderItem.qty) {
+                return res.json({ success: false, message: `Out of Stock: ${dbItem.name} (Only ${dbItem.stock} left)` });
+            }
+        }
+
+        // 2. Validate Wallet Balance (Before Deducting Stock)
+        let user;
+        if (paymentMethod === 'Wallet' && userId) {
+            user = await User.findOne({ id: userId });
+            if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+            if (user.wallet < total) {
+                return res.json({ success: false, message: 'Insufficient Balance' });
+            }
+        }
+
+        // 3. Deduct Stock
+        for (const orderItem of items) {
+            await importItem.findOneAndUpdate(
+                { id: orderItem.id },
+                { $inc: { stock: -orderItem.qty } }
+            );
+        }
+
+        // 4. Create Order
+        let orderId;
+        let isUnique = false;
+        while (!isUnique) {
+            orderId = Math.floor(1000 + Math.random() * 99000).toString(); // 4-5 digits
+            const existing = await Order.findById(orderId);
+            if (!existing) isUnique = true;
+        }
+
         const newOrder = new Order({
+            _id: orderId,
             userId,
             items,
             total,
@@ -33,20 +74,12 @@ router.post('/', async (req, res) => {
         });
         const savedOrder = await newOrder.save();
 
-        // Deduct Wallet Balance if applicable
-        if (paymentMethod === 'Wallet' && userId) {
-            const user = await User.findOne({ id: userId });
-            if (user) {
-                if (user.wallet < total) {
-                    // Start transaction rollback ideally, but simple check here
-                    await Order.findByIdAndDelete(savedOrder._id);
-                    return res.json({ success: false, message: 'Insufficient Balance' });
-                }
-                user.wallet -= total;
-                user.loyalty.totalSpent += total;
-                user.loyalty.points += Math.floor(total / 10);
-                await user.save();
-            }
+        // 5. Deduct Wallet Balance
+        if (user) {
+            user.wallet -= total;
+            user.loyalty.totalSpent += total;
+            user.loyalty.points += Math.floor(total / 10);
+            await user.save();
         }
 
         res.json({ success: true, order: savedOrder });

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema({
+    _id: { type: String },
     userId: { type: String, required: true },
     items: [
         {
@@ -15,6 +16,10 @@ const orderSchema = new mongoose.Schema({
     otp: { type: String }, // For verification
     paymentMethod: { type: String, default: 'Wallet' },
     date: { type: Date, default: Date.now }
-}, { timestamps: true });
+}, {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+});
 
 export default mongoose.model('Order', orderSchema);
